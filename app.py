@@ -6,6 +6,7 @@ import requests
 from events import get_events
 from weather_api import fetch_weather_data
 from historical_data import get_historical_data
+from news import get_news
 
 GROQ_API_KEY =  os.getenv("GROQ_API_KEY")
 
@@ -41,7 +42,7 @@ def groq_api(prompt):
             "reason": f"Error: {response.status_code}, {response.text}"
         }
 
-def create_prompt(booking_date, events_data, weather_data, historical_data):
+def create_prompt(booking_date, events_data, weather_data, historical_data, news_data):
     """
     Formats the input data into a structured prompt to send to Groq API.
     """
@@ -67,6 +68,8 @@ def create_prompt(booking_date, events_data, weather_data, historical_data):
 
     **Major Events Nearby:** - {events_data}
 
+    **News - ** - {news_data}
+
     **Historical Monthly Prices:**
     {json.dumps(historical_data["historical_prices"], indent=2)}
 
@@ -85,11 +88,12 @@ def predict_room_price(booking_date):
     """
     # Collect data from various sources
     events_data = get_events(booking_date)
+    news_data = get_news(booking_date)
     weather_data = fetch_weather_data()
     historical_data = get_historical_data()
 
     # Generate the prompt
-    prompt = create_prompt(booking_date, events_data, weather_data, historical_data)
+    prompt = create_prompt(booking_date, events_data, weather_data, historical_data, news_data)
     print("\n\n",prompt,"\n\n")
     # Send prompt to Groq API
     prediction = groq_api(prompt)
