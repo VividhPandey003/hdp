@@ -4,7 +4,7 @@ def get_historical_data():
         "The_Standard_Room": [
             15000,  # January
             18000,  # February
-            15000,  # March
+            17000,  # March
             15000,  # April
             18000,  # May
             20000,  # June
