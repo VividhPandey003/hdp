@@ -123,8 +123,8 @@ def predict_room_price(booking_date, room_type, city="Bangalore"):
     3. **If the predicted price is above the competitor average, cap it at that level and DO NOT include ancillaries.**
     4. **If the predicted price is below the competitor average, round it up to the competitor average price and add suitable ancillaries.**
     5. **If the predicted price is between the competitor average and the highest competitor price, keep it as is without adding ancillaries.**
-    6. **If the predicted price is lower than the lowest competitor, adjust it to just below the lowest competitor price and add high-value ancillaries.**
-    7. **Provide a detailed explanation (description) for the hotel owner explaining why this price is justified.**
+    6. **If the predicted price is lower than the lowest competitor, adjust it to just below the average competitor price and add high-value ancillaries.**
+    7. **Provide a detailed explanation (description) for the hotel owner explaining why this price is justified in 150 tokens.**
     8. **Explicitly outline the logic (math breakdown) for arriving at the final price.**
     9. **Output must follow this exact JSON structure:**
     

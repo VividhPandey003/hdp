@@ -11,7 +11,7 @@ def get_dynamic_price_range(current_price):
     Determines min and max price using a percentage-based approach.
     """
     if current_price <= 20000:
-        price_variation = current_price * 0.10  # ±10%
+        price_variation = current_price * 0.08  # ±8%
     elif 20000 < current_price <= 50000:
         price_variation = current_price * 0.15  # ±15%
     else:
