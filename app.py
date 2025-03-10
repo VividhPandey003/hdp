@@ -53,6 +53,9 @@ def create_prompt(booking_date, events_data, weather_data, historical_data):
     }
     month_name = months_map.get(month, "Unknown")
 
+    # Convert weather data into a readable JSON format
+    weather_info = json.dumps(weather_data, indent=2)
+
     prompt = f"""
     You are an AI that predicts hotel room prices based on historical pricing trends, weather conditions, and major events.
 
@@ -60,7 +63,7 @@ def create_prompt(booking_date, events_data, weather_data, historical_data):
     - Booking Date: {booking_date}
     - Month: {month_name}
 
-    **Weather Information:** - {weather_data}
+    **Weather Information:**  - {weather_info}
 
     **Major Events Nearby:** - {events_data}
 
@@ -71,7 +74,7 @@ def create_prompt(booking_date, events_data, weather_data, historical_data):
 
     ### **Expected Output in the below JSON Format:**
     - `"predicted_price"`: The estimated price based on demand factors.
-    - `"reason"`: A brief explanation for the prediction.
+    - `"reason"`: A short explanation for the prediction in maximum 250 characters with only necessary information.
     """
 
     return prompt
@@ -82,7 +85,7 @@ def predict_room_price(booking_date):
     """
     # Collect data from various sources
     events_data = get_events(booking_date)
-    weather_data = fetch_weather_data(booking_date, booking_date)
+    weather_data = fetch_weather_data()
     historical_data = get_historical_data()
 
     # Generate the prompt
