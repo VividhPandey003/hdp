@@ -1,6 +1,6 @@
 import requests
 
-def fetch_weather_data(latitude="12.97194", longitude="77.59369", date="2025-03-10", hour=12):
+def fetch_weather_data(date, latitude="12.97194", longitude="77.59369",  hour=12):
     """Fetch temperature, precipitation, and wind speed at a specific hour on a given date."""
     
     url = (
@@ -15,7 +15,6 @@ def fetch_weather_data(latitude="12.97194", longitude="77.59369", date="2025-03-
 
     if response.status_code == 200:
         data = response.json()
-        print("✅ Successfully fetched data:", data)  # Debugging
 
         hourly_data = data.get("hourly", {})
 
@@ -40,5 +39,3 @@ def fetch_weather_data(latitude="12.97194", longitude="77.59369", date="2025-03-
         print(f"❌ ERROR: Failed to fetch weather data (Status Code {response.status_code})")
         return {"temperature": 20, "precipitation": 0, "windspeed": 5}  # Default values
 
-# Example usage: Get weather at 12:00 PM on March 10, 2025
-print(fetch_weather_data())
