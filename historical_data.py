@@ -7,7 +7,7 @@ def get_historical_data():
             17000,  # March
             15000,  # April
             18000,  # May
-            20000,  # June
+            16000,  # June
             16000,  # July
             14000,  # August
             14000,  # September
@@ -18,7 +18,7 @@ def get_historical_data():
         "The_Studio_Room": [
             16000,  # January
             19000,  # February
-            18000,  # March
+            23000,  # March
             16000,  # April
             19000,  # May
             21000,  # June

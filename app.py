@@ -14,10 +14,37 @@ GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 
 # ✅ Dynamic Ancillary Pricing Strategy (LLM decides usage)
 ANCILLARIES = {
+    "gym_access": 100,
     "breakfast": 500,
     "airport_transfer": 1000,
     "spa_access": 1200,
-    "gym_access": 300
+    "late_checkout": 700,
+    "early_checkin": 800,
+    "city_tour": 1500,
+    "laundry_service": 600,
+    "private_dining": 2000,
+    "wifi_premium": 400,
+    "business_center_access": 900,
+    "valet_parking": 500,
+    "mini_bar_credit": 700,
+    "room_upgrades": 2500,
+    "personal_concierge_service": 1800,
+    "pet_friendly_services": 1000,
+    "romantic_package": 2200,
+    "babysitting_service": 1500,
+    "kids_play_area_access": 600,
+    "bike_rental": 750,
+    "shuttle_service": 900,
+    "poolside_cabana": 1300,
+    "live_entertainment": 1200,
+    "beach_club_access": 1600,
+    "cooking_classes": 1400,
+    "wine_tasting_experience": 1700,
+    "yoga_session": 800,
+    "private_fitness_training": 1100,
+    "car_rental_discount": 2500,
+    "personal_shopper_service": 2000,
+    "premium_lounge_access": 1800
 }
 
 def groq_api(prompt):
@@ -70,6 +97,7 @@ def predict_room_price(booking_date, room_type, city="Bangalore"):
 
     # ✅ Fetch competitor pricing
     competitors = get_similar_hotel_prices(city, booking_date, booking_date, current_price)
+    print("🔴 COMPETITORS =", competitors)  # Debugging step
 
     # ✅ Compute average, min, and max competitor price
     competitor_prices = [
@@ -77,11 +105,13 @@ def predict_room_price(booking_date, room_type, city="Bangalore"):
         for hotel in competitors 
         if hotel["price_per_night"] not in ["N/A", None]
     ]
-    
+
+    if not competitor_prices:
+        return json.dumps({"error": "No valid competitor prices found."}, indent=4)
+
     competitor_avg_price = sum(competitor_prices) / len(competitor_prices) if competitor_prices else 0
     competitor_min_price = min(competitor_prices) if competitor_prices else 0
     competitor_max_price = max(competitor_prices) if competitor_prices else 0
-
 
     # ✅ Construct prompt for LLM
     prompt = f"""
@@ -121,11 +151,11 @@ def predict_room_price(booking_date, room_type, city="Bangalore"):
     1. **Set an optimal room price based on real-time demand, competitor pricing, historical trends, and external factors like events and weather conditions.**
     2. **Ensure the price falls within the range of competitor pricing.**
     3. **If the predicted price is above the competitor average, cap it at that level and DO NOT include ancillaries.**
-    4. **If the predicted price is below the competitor average, round it up to the competitor average price and add suitable ancillaries.**
+    4. **If the predicted price is below the competitor average, round it up to the competitor average price and ADD suitable ancillaries.**
     5. **If the predicted price is between the competitor average and the highest competitor price, keep it as is without adding ancillaries.**
     6. **If the predicted price is lower than the lowest competitor, adjust it to just below the average competitor price and add high-value ancillaries.**
-    7. **Provide a detailed explanation (description) for the hotel owner explaining why this price is justified in 150 tokens.**
-    8. **Explicitly outline the logic (math breakdown) for arriving at the final price.**
+    7. **Provide a detailed explanation (description) for the hotel owner explaining why this price is justified in max 200 tokens. `description` must align with the events, news, weather, selected ancillaries, and pricing strategy.**
+    8. **Explicitly outline the logic for arriving at the final price.**
     9. **Output must follow this exact JSON structure:**
     
     ```json
@@ -147,6 +177,8 @@ def predict_room_price(booking_date, room_type, city="Bangalore"):
 
     # ✅ Send prompt to Groq API
     pricing_decision = groq_api(prompt)
+
+    print(f"\n\n🔹 LLM Prompt Sent:\n{prompt}")
 
     # ✅ Format response
     response = {
