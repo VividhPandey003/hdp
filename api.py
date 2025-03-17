@@ -3,10 +3,10 @@ import datetime
 import json
 import sqlite3
 from app import predict_room_price  # ✅ Import function from app.py
-from flask_cors import CORS, cross_origin
+from flask_cors import CORS
 
 app = Flask(__name__)
-cors = CORS(app)
+CORS(app)
 
 def init_db():
     """Initialize the database and create the table if it doesn't exist."""
@@ -89,7 +89,7 @@ def get_price_prediction():
                 result_json.get("current_price", 0),
                 json.dumps(result_json.get("selected_ancillaries", [])),  # Store as JSON string
                 result_json.get("short_description", ""),
-                result_json.get("description", ""),
+                json.dumps(result_json.get("description", [])),
                 result_json.get("logic", "")
             ))
             conn.commit()
@@ -137,7 +137,7 @@ def get_stored_prediction():
                 "current_price": row[2],
                 "selected_ancillaries": json.loads(row[3]),  # Convert back from JSON string
                 "short_description": row[4],
-                "description": row[5],
+                "description": json.loads(row[5]),
                 "logic": row[6]
             })
         else:
@@ -146,6 +146,45 @@ def get_stored_prediction():
     except sqlite3.Error as e:
         print("❌ Database error:", e)
         return jsonify({"error": "Database error"}), 500
+
+@app.route('/delete_prediction', methods=['DELETE'])
+def delete_prediction():
+    """Deletes a specific prediction entry from the database based on date and room type."""
+    print("\n🔵 Received API Request for /delete_prediction")
+    
+    # ✅ Step 1: Get query parameters
+    date = request.args.get('date')
+    room_type = request.args.get('room_type')
+    print(f"🟡 Extracted Parameters: date={date}, room_type={room_type}")
+    
+    # ✅ Step 2: Validate inputs
+    if not date or not room_type:
+        print("❌ Missing required parameters: date or room_type")
+        return jsonify({"error": "Missing required parameters: date and room_type"}), 400
+    
+    try:
+        with sqlite3.connect("predictions.db") as conn:
+            cursor = conn.cursor()
+            
+            # ✅ Step 3: Check if the entry exists
+            cursor.execute("SELECT * FROM predictions WHERE date = ? AND room_type = ?", (date, room_type))
+            entry = cursor.fetchone()
+
+            if not entry:
+                print("❌ No matching prediction found.")
+                return jsonify({"error": "No matching prediction found"}), 404
+
+            # ✅ Step 4: Execute DELETE statement
+            cursor.execute("DELETE FROM predictions WHERE date = ? AND room_type = ?", (date, room_type))
+            conn.commit()
+            print("✅ Prediction deleted successfully!")
+
+            return jsonify({"message": "Prediction deleted successfully."}), 200
+
+    except sqlite3.Error as e:
+        print("❌ Database error:", e)
+        return jsonify({"error": "Database error while deleting"}), 500
+
 
 if __name__ == '__main__':
     print("\n🚀 Starting Flask API Server...")

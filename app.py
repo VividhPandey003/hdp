@@ -12,7 +12,7 @@ from similar_hotel_data import get_similar_hotel_prices
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 
-# ✅ Dynamic Ancillary Pricing Strategy (LLM decides usage)
+# ✅ Ancillary Pricing Strategy
 ANCILLARIES = {
     "gym_access": 100,
     "breakfast": 500,
@@ -87,19 +87,18 @@ def predict_room_price(booking_date, room_type, city="Bangalore"):
     weather_data = fetch_weather_data(booking_date)
     historical_data = get_historical_data()
 
-    # ✅ Get historical price
-    month_index = int(booking_date.split('-')[1]) - 1
-    current_price = historical_data[room_type][month_index]
-
     # ✅ Validate room type
     if room_type not in historical_data:
         return json.dumps({"error": f"Invalid room type '{room_type}'."}, indent=4)
+
+    # ✅ Get historical price
+    month_index = int(booking_date.split('-')[1]) - 1
+    current_price = historical_data[room_type][month_index]
 
     # ✅ Fetch competitor pricing
     competitors = get_similar_hotel_prices(city, booking_date, booking_date, current_price)
     print("🔴 COMPETITORS =", competitors)  # Debugging step
 
-    # ✅ Compute average, min, and max competitor price
     competitor_prices = [
         int(hotel["price_per_night"].replace("₹", "").replace(",", "")) 
         for hotel in competitors 
@@ -148,16 +147,21 @@ def predict_room_price(booking_date, room_type, city="Bangalore"):
     ```
 
     ### **Instructions for Price Prediction**
-    1. **Set an optimal room price based on real-time demand, competitor pricing, historical trends, and external factors like events and weather conditions.**
-    2. **Ensure the price falls within the range of competitor pricing.**
-    3. **If the predicted price is above the competitor average, cap it at that level and DO NOT include ancillaries.**
-    4. **If the predicted price is below the competitor average, round it up to the competitor average price and ADD suitable ancillaries.**
-    5. **If the predicted price is between the competitor average and the highest competitor price, keep it as is without adding ancillaries.**
-    6. **If the predicted price is lower than the lowest competitor, adjust it to just below the average competitor price and add high-value ancillaries.**
-    7. **Provide a detailed explanation (description) for the hotel owner explaining why this price is justified in max 200 tokens. `description` must align with the events, news, weather, selected ancillaries, and pricing strategy.**
-    8. **Explicitly outline the logic for arriving at the final price.**
-    9. **Output must follow this exact JSON structure:**
-    
+    1. **Set an optimal room price** based on real-time demand, competitor pricing, historical trends, and external factors like events, weather conditions, and news.
+    2. **Ensure the price falls within the competitor pricing range** to maintain competitiveness while maximizing revenue.
+    3. **If the predicted price is above the competitor average**, cap it at that level and **DO NOT include ancillaries** to avoid overpricing.
+    4. **If the predicted price is below the competitor average**, round it up to the competitor average price and **ADD suitable ancillaries** to enhance value.
+    5. **If the predicted price is between the competitor average and the highest competitor price**, keep it as is **without adding ancillaries** to maintain competitiveness.
+    6. **If the predicted price is lower than the lowest competitor**, adjust it to just below the **average** competitor price and **add high-value ancillaries** to attract more bookings.
+    7. **Provide a structured `description` in bullet points**, ranking the factors influencing the final price in order of importance, but **without headings**:
+    - Mention any major events affecting demand with expected attendance and impact.
+    - Summarize the competitor pricing trend and where the optimized price is set.
+    - Briefly note weather conditions if they have any impact on travel plans.
+    - Include historical booking trends and how the price aligns with past demand.
+    - If ancillaries are added, mention them with a short justification.
+    - If any news or external factors influence the price, summarize their effect.
+    8. **Explicitly outline the `logic` used** for arriving at the final price, ensuring calculations and justifications are clearly explained in maximum 150 tokens.
+    9. **Strictly follow the JSON response format below:**
     ```json
     {{
         "booking_date": "{booking_date}",
@@ -167,7 +171,7 @@ def predict_room_price(booking_date, room_type, city="Bangalore"):
         "avgOfSimilarHotelsPricing": {competitor_avg_price},
         "selected_ancillaries": ["string"],
         "short_description": "string",
-        "description": "string",
+        "description": ["string"], 
         "logic": "string"
     }}
     ```
