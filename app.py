@@ -55,7 +55,7 @@ def groq_api(prompt):
     }
 
     payload = {
-        "model": "mixtral-8x7b-32768",
+        "model": "llama-3.3-70b-versatile",
         "messages": [
             {"role": "system", "content": "You are an AI hotel pricing strategist. Given historical trends, competitor pricing, weather, and demand, propose the best price while ensuring competitiveness and profitability."},
             {"role": "user", "content": prompt}
@@ -153,7 +153,7 @@ def predict_room_price(booking_date, room_type, city="Bangalore"):
     4. **If the predicted price is below the competitor average**, round it up to the competitor average price and **ADD suitable ancillaries** to enhance value.
     5. **If the predicted price is between the competitor average and the highest competitor price**, keep it as is **without adding ancillaries** to maintain competitiveness.
     6. **If the predicted price is lower than the lowest competitor**, adjust it to just below the **average** competitor price and **add high-value ancillaries** to attract more bookings.
-    7. **Provide a structured `description` in bullet points**, ranking the factors influencing the final price in order of importance, but **without headings**:
+    7. **Provide a structured `description` in bullet points**, ranking the factors influencing the final price in order of importance, but **WITHOUT HEADINGS**:
     - Mention any major events affecting demand with expected attendance and impact.
     - Summarize the competitor pricing trend and where the optimized price is set.
     - Briefly note weather conditions if they have any impact on travel plans.
@@ -177,7 +177,7 @@ def predict_room_price(booking_date, room_type, city="Bangalore"):
     ```
     """
 
-    print("\n🔹 Sending prompt to Groq API...\n")
+    print("\n🔹 Sending prompt to LLM API...\n")
 
     # ✅ Send prompt to Groq API
     pricing_decision = groq_api(prompt)

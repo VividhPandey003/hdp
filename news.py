@@ -1,84 +1,92 @@
-from dotenv import load_dotenv
-load_dotenv()
-import requests
 import os
+import json
+import requests
+from datetime import datetime, timedelta
+from dotenv import load_dotenv
 
-API_KEY = os.getenv("PERPLEXITY_API_KEY")
-BASE_URL = "https://api.perplexity.ai/chat/completions"
+# ✅ Load SERPAPI key
+load_dotenv()
+SERPAPI_KEY = os.getenv("SERP_API_KEY")
 
-headers = {
-    "Authorization": f"Bearer {API_KEY}",
-    "Content-Type": "application/json"
-}
+def filter_relevant_news(news_items, target_date):
+    """
+    Filters news within ±2 days of the target_date.
+    """
+    target = datetime.strptime(target_date, "%Y-%m-%d")
+    relevant_news = []
 
-def get_news(date):
-    payload = {
-        "model": "sonar",
-        "messages": [
-            {
-                "role": "system",
-                "content": "You are an AI assistant that provides structured data on news and developments in Bangalore that could impact hotel pricing, including disease outbreaks, political unrest, protests, elections, economic changes, strikes, or other factors. Your response must strictly follow the provided JSON schema."
-            },
-            {
-                "role": "user",
-                "content": "List major ongoing or upcoming news events in Bangalore that could impact hotel pricing on {date}. These may include:\n"
-                          "- Disease outbreaks (e.g., COVID-19, dengue, flu epidemic)\n"
-                          "- Protests, political unrest, or large-scale strikes\n"
-                          "- Elections and political events\n"
-                          "- Economic downturns, inflation spikes, or currency fluctuations\n"
-                          "- Natural disasters (floods, earthquakes, heavy rainfall warnings)\n\n"
-                          "Format your response as a JSON object with the following structure:\n\n"
-                          "{\n"
-                          "  \"news\": [\n"
-                          "    {\n"
-                          "      \"newsTitle\": \"string\",\n"
-                          "      \"impactLevel\": \"High | Medium | Low\",\n"
-                          "      \"startDate\": \"YYYY-MM-DD\",\n"
-                          "      \"endDate\": \"YYYY-MM-DD\",\n"
-                          "      \"reason\": \"string\"\n"
-                          "    }\n"
-                          "  ]\n"
-                          "}\n\n"
-                          "Ensure that all required fields are included and that impactLevel is categorized as 'High', 'Medium', or 'Low'. If an issue is ongoing (e.g., a disease outbreak), set the startDate to when it began and endDate to an estimated resolution date, if known. \nOnly provide valid JSON. Do not include ```json in response or any other text."
-            }
-        ],
-        "response_format": {
-            "type": "json_schema",
-            "json_schema": {
-                "schema": {
-                    "name": "fetch_Bangalore_news",
-                    "description": "Retrieve major news and developments in Bangalore that could influence hotel pricing.",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "news": {
-                                "type": "array",
-                                "description": "A list of major news factors that may affect hotel pricing.",
-                                "items": {
-                                    "type": "object",
-                                    "properties": {
-                                        "newsTitle": {"type": "string"},
-                                        "impactLevel": {"type": "string", "enum": ["High", "Medium", "Low"]},
-                                        "startDate": {"type": "string", "format": "date"},
-                                        "endDate": {"type": "string", "format": "date"},
-                                        "reason": {"type": "string"}
-                                    },
-                                    "required": ["newsTitle", "impactLevel", "startDate", "endDate", "reason"]
-                                }
-                            }
-                        },
-                        "required": ["news"]
-                    }
-                }
-            }
-        }
+    for item in news_items:
+        date_str = item.get("date")
+        if not date_str:
+            continue
+
+        try:
+            news_date = datetime.strptime(date_str, "%b %d, %Y")  # e.g., "May 17, 2025"
+        except ValueError:
+            continue
+
+        if target - timedelta(days=2) <= news_date <= target + timedelta(days=2):
+            relevant_news.append(item)
+
+    return relevant_news
+
+
+def get_news(target_date, location="Bangalore"):
+    """
+    Uses SerpAPI Google News to fetch news headlines near Bangalore
+    and filters only those that might impact hotel pricing.
+    """
+    url = "https://serpapi.com/search"
+    params = {
+        "engine": "google_news",
+        "q": f"{location} protests OR outbreak OR strike OR flood OR political unrest OR election",
+        "location": location,
+        "hl": "en",
+        "gl": "in",
+        "api_key": SERPAPI_KEY
     }
 
-    response = requests.post(BASE_URL, headers=headers, json=payload)
+    response = requests.get(url, params=params)
 
     if response.status_code == 200:
-        return response.json()["choices"][0]['message']['content']
+        data = response.json()
+        if "news_results" not in data:
+            return {"error": "No news found"}
+
+        filtered_news = filter_relevant_news(data["news_results"], target_date)
+
+        news_list = []
+        for news in filtered_news:
+            title = news.get("title", "No Title")
+            date_str = news.get("date", "N/A")
+            link = news.get("link", "#")
+            snippet = news.get("snippet", "")
+
+            # ✅ Basic heuristic for impactLevel
+            title_lower = title.lower()
+            if any(x in title_lower for x in ["strike", "flood", "outbreak", "unrest", "protest"]):
+                impact_level = "High"
+            elif "election" in title_lower or "power cut" in title_lower:
+                impact_level = "Medium"
+            else:
+                impact_level = "Low"
+
+            news_list.append({
+                "newsTitle": title,
+                "impactLevel": impact_level,
+                "startDate": date_str,
+                "endDate": date_str,  # Assuming 1-day news item
+                "reason": snippet,
+                "newsLink": link
+            })
+
+        return {"news": news_list}
     else:
-        return f"Error: {response.status_code}, {response.text}"
+        return {"error": f"API request failed: {response.status_code}, {response.text}"}
 
 
+# ✅ Example usage
+if __name__ == "__main__":
+    test_date = "2025-03-21"
+    result = get_news(test_date)
+    print(json.dumps(result, indent=2))

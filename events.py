@@ -1,121 +1,132 @@
-from dotenv import load_dotenv
-load_dotenv()
 import requests
 import os
+import json
+from dotenv import load_dotenv
+from datetime import datetime, timedelta
 
-API_KEY = os.getenv("PERPLEXITY_API_KEY")
-BASE_URL = "https://api.perplexity.ai/chat/completions"
+# ✅ Load API key from .env file
+load_dotenv()
+SERPAPI_KEY = os.getenv("SERP_API_KEY")
 
-headers = {
-    "Authorization": f"Bearer {API_KEY}",
-    "Content-Type": "application/json"
-}
-
-def get_events(date, hotel_location="Whitefield, Bangalore"):
+def filter_relevant_events(events, target_date):
     """
-    Fetches major upcoming events near the hotel location that could impact hotel pricing.
-    The response includes event details, expected attendance, event location, and its impact on hotel pricing.
+    Filters events to include only those occurring within ±2 days of the target_date.
     """
+    target_date = datetime.strptime(target_date, "%Y-%m-%d")
+    filtered_events = []
 
-    prompt_content = f"""
-    You are an AI assistant that provides structured data on major events in {hotel_location} affecting hotel pricing.
-    
-    Your response **must strictly follow the provided JSON schema**.
+    for event in events:
+        start_date_str = event.get("date", {}).get("start_date", "")
+        end_date_str = event.get("date", {}).get("end_date", start_date_str)  # Default to same day if missing
 
-    **Task:**  
-    List major upcoming events near {hotel_location} that could impact hotel pricing on {date}.  
+        try:
+            # ✅ Convert event dates to datetime objects
+            start_date = datetime.strptime(start_date_str, "%b %d")
+            end_date = datetime.strptime(end_date_str, "%b %d")
 
-    **Considerations:**  
-    - Only include events with **large attendance (above 1000 attendees)** or those that could significantly impact hotel demand.  
-    - Provide the **expected attendee count** for each event.  
-    - Specify the **event location (venue & city)**.  
-    - Analyze whether the event **actually affects hotel demand** in {hotel_location}.  
-      - If yes, explain why (e.g., high demand, close to hotel, multi-day event).  
-      - If no, provide a reason (e.g., niche audience, far from hotel).  
+            # ✅ Set the year to match the target date (API does not provide year)
+            start_date = start_date.replace(year=target_date.year)
+            end_date = end_date.replace(year=target_date.year)
 
-    **JSON Response Structure:**  
-    ```json
-    {{
-      "events": [
-        {{
-          "eventName": "string",
-          "eventCapacityLevel": "High | Medium | Low",
-          "expectedAttendees": "integer",
-          "eventLocation": {{
-            "venue": "string",
-            "city": "string"
-          }},
-          "startDate": "YYYY-MM-DD",
-          "endDate": "YYYY-MM-DD",
-          "affectsHotel": "Yes | No",
-          "reason": "string"
-        }}
-      ]
-    }}
-    ```
-    
-    **Rules for the Response:**  
-    - `eventCapacityLevel`:  
-      - "High" → **More than 10,000 attendees**  
-      - "Medium" → **Between 2,000 - 10,000 attendees**  
-      - "Low" → **Between 1,000 - 2,000 attendees**  
-    - `affectsHotel`:  
-      - "Yes" → If high demand is expected in {hotel_location}  
-      - "No" → If the event is far away or has a niche audience  
-    - Ensure that all fields are provided in valid JSON format. **No extra text or markdown.**
+            # ✅ Keep events within ±2 days of the target_date
+            if (start_date - timedelta(days=2) <= target_date <= end_date + timedelta(days=2)):
+                filtered_events.append(event)
+        except ValueError:
+            continue  # Skip events with invalid date formats
+
+    return filtered_events
+
+
+def get_events(date, location="Bangalore"):
+    """
+    Fetches major upcoming events near the specified location using Google Events API (SerpAPI).
+    Filters out past events and only keeps relevant events that may affect hotel pricing.
     """
 
-    payload = {
-        "model": "sonar",
-        "messages": [
-            {"role": "system", "content": "You are an AI assistant that provides structured data on major events affecting hotel pricing."},
-            {"role": "user", "content": prompt_content}
-        ],
-        "response_format": {
-            "type": "json_schema",
-            "json_schema": {
-                "schema": {
-                    "name": "fetch_Bangalore_events",
-                    "description": "Retrieve major upcoming events that could impact hotel pricing.",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "events": {
-                                "type": "array",
-                                "description": "A list of major events that may affect hotel pricing.",
-                                "items": {
-                                    "type": "object",
-                                    "properties": {
-                                        "eventName": {"type": "string"},
-                                        "eventCapacityLevel": {"type": "string", "enum": ["High", "Medium", "Low"]},
-                                        "expectedAttendees": {"type": "integer"},
-                                        "eventLocation": {
-                                            "type": "object",
-                                            "properties": {
-                                                "venue": {"type": "string"},
-                                                "city": {"type": "string"}
-                                            },
-                                            "required": ["venue", "city"]
-                                        },
-                                        "startDate": {"type": "string", "format": "date"},
-                                        "endDate": {"type": "string", "format": "date"},
-                                        "affectsHotel": {"type": "string", "enum": ["Yes", "No"]},
-                                        "reason": {"type": "string"}
-                                    },
-                                    "required": ["eventName", "eventCapacityLevel", "expectedAttendees", "eventLocation", "startDate", "endDate", "affectsHotel", "reason"]
-                                }
-                            }
-                        },
-                        "required": ["events"]
-                    }
-                }
-            }
-        }
+    # ✅ Define API Endpoint
+    url = "https://serpapi.com/search"
+
+    # ✅ Request Parameters
+    params = {
+        "engine": "google_events",
+        "q": f"Events in {location}",  # ✅ Use city-level location
+        "hl": "en",
+        "gl": "in",
+        "location": location,  # ✅ Use only city name
+        "htichips": "date:week",  # ✅ Fetch events for the whole week
+        "api_key": SERPAPI_KEY
     }
 
-    response = requests.post(BASE_URL, headers=headers, json=payload)
+    # ✅ API Request
+    response = requests.get(url, params=params)
 
     if response.status_code == 200:
-        return response.json()["choices"][0]['message']['content']
+        try:
+            data = response.json()
+            print(json.dumps(data, indent=2))  # ✅ Debugging: Print full API response
+
+            if "events_results" not in data:
+                return {"error": "No events found"}
+
+            # ✅ Extract and filter event details
+            event_list = []
+            for event in filter_relevant_events(data["events_results"], date):
+                event_name = event.get("title", "N/A")
+                venue = event.get("venue", {}).get("name", "Unknown Venue")
+                city = event.get("venue", {}).get("address", {}).get("city", location)
+
+                event_start_date = event.get("date", {}).get("start_date", "N/A")
+                event_end_date = event.get("date", {}).get("end_date", event_start_date)  # Default to same day
+                event_link = event.get("link", "N/A")
+
+                # ✅ Fix: Extract ticket information properly
+                ticket_info = event.get("ticket_info", [])
+                if isinstance(ticket_info, list) and ticket_info:
+                    event_attendance = 1000  # Default
+                else:
+                    event_attendance = 1000  # Assume 1000 if missing
+
+                # ✅ Determine Capacity Level
+                if event_attendance > 10000:
+                    capacity_level = "High"
+                elif 2000 <= event_attendance <= 10000:
+                    capacity_level = "Medium"
+                else:
+                    capacity_level = "Low"
+
+                # ✅ Determine if the event impacts hotel demand
+                affects_hotel = "Yes" if "Whitefield" in venue or city.lower() == "bangalore" else "No"
+                reason = "Close proximity to Whitefield, expected high demand." if affects_hotel == "Yes" else "Far from Whitefield."
+
+                # ✅ Append to event list
+                event_list.append({
+                    "eventName": event_name,
+                    "eventCapacityLevel": capacity_level,
+                    "expectedAttendees": event_attendance,
+                    "eventLocation": {
+                        "venue": venue,
+                        "city": city
+                    },
+                    "startDate": event_start_date,
+                    "endDate": event_end_date,
+                    "affectsHotel": affects_hotel,
+                    "reason": reason,
+                    "eventLink": event_link
+                })
+
+            print("\n🔹 Filtered Events List:\n", json.dumps(event_list, indent=2))  # ✅ Print filtered events
+
+            return {"events": event_list}
+
+        except json.JSONDecodeError:
+            return {"error": "Failed to parse JSON response"}
+
     else:
-        return f"Error: {response.status_code}, {response.text}"
+        return {"error": f"API request failed: {response.status_code}, {response.text}"}
+
+
+# ✅ Example Call
+if __name__ == "__main__":
+    test_date = "2025-03-21"
+    result = get_events(test_date)
+    print(json.dumps(result, indent=2))

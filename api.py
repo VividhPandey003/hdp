@@ -147,7 +147,7 @@ def get_stored_prediction():
         print("❌ Database error:", e)
         return jsonify({"error": "Database error"}), 500
 
-@app.route('/delete_prediction', methods=['DELETE'])
+@app.route('/delete_prediction', methods=['DELETE', 'GET'])
 def delete_prediction():
     """Deletes a specific prediction entry from the database based on date and room type."""
     print("\n🔵 Received API Request for /delete_prediction")

@@ -11,8 +11,8 @@ def get_dynamic_price_range(current_price):
     Determines min and max price using a percentage-based approach.
     """
 
-    min_price = max(14000, (current_price - 2000))  
-    max_price = max((current_price+5000),25000)
+    min_price = max(14000, (current_price - 4000))  
+    max_price = min((current_price+12000),35000)
 
     return min_price, max_price
 
